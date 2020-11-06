@@ -1,0 +1,1 @@
+https://service.post.ch/zopa/dlc/app/?service=dlc-web&inMobileApp=false&inIframe=false&lang=de#/main
