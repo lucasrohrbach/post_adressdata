@@ -41,7 +41,7 @@ Get-ChildItem -Path $outDir -Include *.* -Recurse | ForEach-Object { $_.Delete()
 
 $csvFiles = Get-ChildItem -path $inDir -include *.csv -Recurse
 foreach ($csvFile in $csvFiles) {
-    # Import csv records, skip linesbut only if first column (column A) has value "01"
+    # Import csv records, skip lines if record type (column A) is not equal to "01"
     $data = Import-Csv -Path $csvFile -Delimiter ";" -Header A,B,C,D,E,F,G,H,I,J -Encoding "UTF7" | Where-Object A -eq "01"
 
     Write-Host "Reading " $data.Count "record(s) from file" $csvFile
