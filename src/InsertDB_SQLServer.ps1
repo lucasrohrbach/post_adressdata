@@ -1,7 +1,7 @@
 #-----------------------------------------------------------------
 # Project: Import Address Data
 # Subject: Import Address Data from Address Data File from Swiss Post
-# Description: Generate CSV files for database import.
+# Description: Insert Data directly into SQL Server Database
 #-----------------------------------------------------------------
 # Rev | Date Modified | Developer      | Change Summary
 #-----------------------------------------------------------------
@@ -16,12 +16,10 @@
 #$inDir = $PSScriptRoot + "\" + "in"
 $inDir = "c:\Temp\AddressData\in"
 
-# Target directory
-#$outDir = $PSScriptRoot + "\" + "out"
-$outDir = "c:\Temp\AddressData\out"
-
+# Target database
 $dbSchema = "dbo"
 $dbTable = "Ort"
+$connString = "Server=localhost;Database=Gritec.AddressData;Trusted_Connection=True;"  
 #-----------------------------------------------------------------
 
 # Include helper functions
@@ -36,8 +34,10 @@ foreach ($zipFile in $zipFiles) {
     Expand-Archive -LiteralPath $zipFile -DestinationPath $inDir -Force
 } 
 
-# Cleaning: delete all files in out dir
-Get-ChildItem -Path $outDir -Include *.* -Recurse | ForEach-Object { $_.Delete()}
+# Prepare DB connection
+$conn = New-Object System.Data.SqlClient.SqlConnection                     
+$conn.ConnectionString = $connString                                      
+$conn.Open()
 
 $csvFiles = Get-ChildItem -path $inDir -include *.csv -Recurse
 foreach ($csvFile in $csvFiles) {
@@ -45,9 +45,6 @@ foreach ($csvFile in $csvFiles) {
     $data = Import-Csv -Path $csvFile -Delimiter ";" -Header A,B,C,D,E,F,G,H,I,J -Encoding "UTF7" | Where-Object A -eq "01"
 
     Write-Host "Reading " $data.Count "record(s) from file" $csvFile
-
-    $fileNameWithoutExtension = Split-Path $csvFile -LeafBase
-    $outputFile = $outDir + "\" + $fileNameWithoutExtension + ".sql"
 
     foreach($row in $data){
 
@@ -63,10 +60,17 @@ foreach ($csvFile in $csvFiles) {
         $fields = "ONRP, PLZ, Ort, Kanton"
         $values = "$onrp, $plz," + (ToVarchar $ort) + "," + (ToVarchar $kanton)
 
-        # Add record to output file
-        Add-Content $outputFile -Value "INSERT INTO [$dbSchema].[$dbTable] ($fields) VALUES ($values);" -Encoding "UTF8"
+        # Create INSERT statement
+        $sql = "INSERT INTO [$dbSchema].[$dbTable] ($fields) VALUES ($values);"
+
+        $cmd = New-Object System.Data.SqlClient.SqlCommand                         
+        $cmd.CommandText = $sql                                                    
+        $cmd.Connection = $conn                                                    
+        $cmd.ExecuteNonQuery()   
     }
 }
+
+$conn.close()
 
 $endTime = (Get-Date)
 $duration = New-TimeSpan -Start $startTime -End $endTime
